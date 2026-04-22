@@ -17,7 +17,7 @@ app = FastAPI()
 # -----------------------------
 # Load model
 # -----------------------------
-model = pickle.load(open("fraud_model.sav", "rb"))
+model = pickle.load(open("fraud_model.pkl", "rb"))
 
 # -----------------------------
 # Feature list (EXCLUDING target)
@@ -126,9 +126,16 @@ def predict(input_data: FraudInput):
     try:
         import pandas as pd
 
+        # -----------------------------
+        # Custom Threshold
+        # -----------------------------
+        THRESHOLD = 0.715
+
         data_dict = input_data.data
 
-        # Missing features check
+        # -----------------------------
+        # Missing Features Check
+        # -----------------------------
         missing = [f for f in FEATURES if f not in data_dict]
 
         if missing:
@@ -138,7 +145,9 @@ def predict(input_data: FraudInput):
                 "first_10_missing": missing[:10]
             }
 
-        # Create DataFrame (BEST METHOD)
+        # -----------------------------
+        # Create DataFrame
+        # -----------------------------
         X = pd.DataFrame([data_dict])
 
         # exact feature order
@@ -147,20 +156,27 @@ def predict(input_data: FraudInput):
         # numeric conversion
         X = X.apply(pd.to_numeric, errors="coerce")
 
-        # fill nulls
+        # fill null values
         X = X.fillna(-1)
 
-        # prediction
-        prediction = model.predict(X)[0]
+        # -----------------------------
+        # Predict Probability
+        # -----------------------------
+        prob = float(model.predict_proba(X)[0][1])
 
-        prob = None
-        if hasattr(model, "predict_proba"):
-            prob = float(model.predict_proba(X)[0][1])
+        # -----------------------------
+        # Apply Custom Threshold
+        # -----------------------------
+        prediction = 1 if prob >= THRESHOLD else 0
 
+        # -----------------------------
+        # Return Output
+        # -----------------------------
         return {
             "prediction": int(prediction),
             "fraud": bool(prediction),
             "probability": prob,
+            "threshold": THRESHOLD,
             "status": "success"
         }
 
