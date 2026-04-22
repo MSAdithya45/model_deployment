@@ -122,25 +122,50 @@ def home():
 # -----------------------------
 @app.post("/predict")
 def predict(input_data: FraudInput):
-    data_dict = input_data.data
 
-    # Check missing features
-    missing = [f for f in FEATURES if f not in data_dict]
-    if missing:
-        return {"error": "Missing features", "missing_count": len(missing)}
+    try:
+        import pandas as pd
 
-    # Arrange input in correct order
-    input_list = [data_dict[f] for f in FEATURES]
-    input_array = np.array(input_list).reshape(1, -1)
+        data_dict = input_data.data
 
-    prediction = model.predict(input_array)[0]
+        # Missing features check
+        missing = [f for f in FEATURES if f not in data_dict]
 
-    prob = None
-    if hasattr(model, "predict_proba"):
-        prob = model.predict_proba(input_array)[0][1]
+        if missing:
+            return {
+                "error": "Missing features",
+                "missing_count": len(missing),
+                "first_10_missing": missing[:10]
+            }
 
-    return {
-        "prediction": int(prediction),
-        "fraud": bool(prediction),
-        "probability": prob
-    }
+        # Create DataFrame (BEST METHOD)
+        X = pd.DataFrame([data_dict])
+
+        # exact feature order
+        X = X.reindex(columns=FEATURES, fill_value=-1)
+
+        # numeric conversion
+        X = X.apply(pd.to_numeric, errors="coerce")
+
+        # fill nulls
+        X = X.fillna(-1)
+
+        # prediction
+        prediction = model.predict(X)[0]
+
+        prob = None
+        if hasattr(model, "predict_proba"):
+            prob = float(model.predict_proba(X)[0][1])
+
+        return {
+            "prediction": int(prediction),
+            "fraud": bool(prediction),
+            "probability": prob,
+            "status": "success"
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": str(e)
+        }
