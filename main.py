@@ -17,7 +17,7 @@ app = FastAPI()
 # -----------------------------
 # Load model
 # -----------------------------
-model = pickle.load(open("fraud_model.pkl", "rb"))
+model = pickle.load(open("fraud_model.sav", "rb"))
 
 # -----------------------------
 # Feature list (EXCLUDING target)
